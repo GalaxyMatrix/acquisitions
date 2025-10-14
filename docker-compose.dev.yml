@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Neon Local Proxy - Creates ephemeral database branches
+  neon-local:
+    image: neondatabase/neon_local:latest
+    container_name: acquisitions-neon-local
+    ports:
+      - '5432:5432'
+    env_file:
+      - .env.development
+    volumes:
+      # Store Neon Local metadata (optional, for persistent branches per git branch)
+      - ./.neon_local/:/tmp/.neon_local
+      # Git integration for branch-per-git-branch workflow (optional)
+      - ./.git/HEAD:/tmp/.git/HEAD:ro
+    networks:
+      - acquisitions-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application Service
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: acquisitions-app-dev
+    ports:
+      - '3000:3000'
+    env_file:
+      - .env.development
+    volumes:
+      # Mount source code for hot-reload in development
+      - ./src:/app/src:delegated
+      - ./package.json:/app/package.json:ro
+      - ./package-lock.json:/app/package-lock.json:ro
+      # Exclude node_modules from mount
+      - /app/node_modules
+    networks:
+      - acquisitions-network
+    depends_on:
+      neon-local:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { hostname: 'localhost', port: 3000, path: '/health', timeout: 2000 }; const req = http.request(options, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  acquisitions-network:
+    driver: bridge
+
+volumes:
+  neon_local_data:
