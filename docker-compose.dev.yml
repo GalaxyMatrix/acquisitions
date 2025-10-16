@@ -10,17 +10,17 @@ services:
     env_file:
       - .env.development
     volumes:
-      # Optional: Persist branches per Git branch
       - ./.neon_local/:/tmp/.neon_local
-      - ./.git/HEAD:/tmp/.git/HEAD:ro,consistent
+      - ./.git/HEAD:/tmp/.git/HEAD:ro
     networks:
       - acquisition-network
     healthcheck:
-      test: ['CMD', 'pg_isready', '-h', 'localhost', '-p', '5432', '-U', 'neon']
+      test: ["CMD-SHELL", "timeout 2 bash -c '</dev/tcp/localhost/5432' || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 30s
+      retries: 30
+      start_period: 120s
+    restart: unless-stopped
 
   # Application Service
   app:
@@ -30,14 +30,16 @@ services:
       target: development
     container_name: acquisition-app-dev
     ports:
-      - '5173:5173'
+      - '3000:3000'
     env_file:
       - .env.development
+    environment:
+      - PORT=3000
+      - NODE_ENV=development
     volumes:
-      # Mount source code for hot reload
-      - ./src:/app/src:ro
+      - ./src:/app/src:delegated
       - ./package.json:/app/package.json:ro
-      # Exclude node_modules to prevent conflicts
+      - ./package-lock.json:/app/package-lock.json:ro
       - /app/node_modules
     networks:
       - acquisition-network
@@ -45,16 +47,8 @@ services:
       neon-local:
         condition: service_healthy
     restart: unless-stopped
-    stdin_open: true
-    tty: true
     healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "const http = require('http'); const req = http.request({hostname: 'localhost', port: 5173, path: '/health'}, (res) => process.exit(res.statusCode === 200 ? 0 : 1)); req.on('error', () => process.exit(1)); req.end();",
-        ]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -63,7 +57,3 @@ services:
 networks:
   acquisition-network:
     driver: bridge
-
-volumes:
-  neon-local-data:
-    driver: local
