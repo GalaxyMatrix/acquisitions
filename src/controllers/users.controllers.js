@@ -9,7 +9,7 @@ import {
   userIdSchema,
   updateUserSchema,
 } from '#src/Validations/user.validation.js';
-import { formatValidationErrors } from '#utils/format.js';  // ✅ Changed to plural
+import { formatValidationErrors } from '#Utils/format.js';  // ✅ Changed to plural
 
 export const fetchAllUsers = async (req, res, next) => {
   try {
