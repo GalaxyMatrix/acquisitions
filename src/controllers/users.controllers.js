@@ -8,7 +8,7 @@ import {
 import {
   userIdSchema,
   updateUserSchema,
-} from '#validations/user.validation.js';
+} from '#src/Validations/user.validation.js';
 import { formatValidationErrors } from '#utils/format.js';  // ✅ Changed to plural
 
 export const fetchAllUsers = async (req, res, next) => {

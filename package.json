@@ -12,7 +12,7 @@
     "#routes/*": "./src/routes/*",
     "#services/*": "./src/services/*",
     "#utils/*": "./src/utils/*",
-    "#validations/*": "./src/validations/*"
+    "#Validations/*": "./src/Validations/*"
   },
   "scripts": {
     "start": "node src/server.js",
