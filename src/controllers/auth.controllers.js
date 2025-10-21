@@ -4,7 +4,7 @@ import { formatValidationErrors } from '#Utils/format.js';
 import { createUser, authenticateUser } from '#src/Services/auth.service.js';
 import { jwttoken } from '#src/Utils/jwt.js'; // Fixed: Import your JWT utility, not from 'zod'
 
-export const signup = async (req, res, next) => {
+export const signup = async (req, res) => {
   try{
     const validationResult = signUpSchema.safeParse(req.body);
 
@@ -15,9 +15,10 @@ export const signup = async (req, res, next) => {
       });
     }
 
-    const {name, email, role} = validationResult.data;
-    
-    const newUser = await createUser(validationResult.data);
+
+    const { name, email, password, role } = validationResult.data;
+
+    const newUser = await createUser(name, email, password, role);
 
     const token = jwttoken.sign({id: newUser.id, email: newUser.email, role: newUser.role}); // Fixed: Use jwttoken.sign
 
@@ -52,7 +53,7 @@ export const signup = async (req, res, next) => {
   }
 };
 
-export const signin = async (req, res, next) => {
+export const signin = async (req, res) => {
   try {
     const validationResult = signInSchema.safeParse(req.body);
 
@@ -100,7 +101,7 @@ export const signin = async (req, res, next) => {
   }
 };
 
-export const signout = async (req, res, next) => {
+export const signout = async (req, res) => {
   try {
     // Clear the token cookie
     res.clearCookie('token', {
