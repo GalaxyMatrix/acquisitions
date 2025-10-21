@@ -1,6 +1,6 @@
 import logger from '#src/config/logger.js';
-import { signUpSchema, signInSchema } from '#src/Validations/auth.validation.js';
-import { formatValidationErrors } from '#src/Utils/format.js';
+import { signUpSchema, signInSchema } from '#src/validations/auth.validation.js';
+import { formatValidationErrors } from '#utils/format.js';
 import { createUser, authenticateUser } from '#src/Services/auth.service.js';
 import { jwttoken } from '#src/Utils/jwt.js'; // Fixed: Import your JWT utility, not from 'zod'
 

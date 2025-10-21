@@ -4,7 +4,7 @@ import {users} from '#models/user.model.js';
 import {eq} from 'drizzle-orm';
 
 
-export const getAllUser = async () => {
+export const getAllUsers = async () => {
   try{
     return await db.select({
       id : users.id,

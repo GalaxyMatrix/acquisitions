@@ -1,202 +1,187 @@
-import logger from '#src/config/logger.js';
-import { getAllUser, getUserById as getUser, updateUser as updateUserService, deleteUser as deleteUserService } from '#src/Services/user.service.js';
-import { userIdSchema, updateUserSchema } from '#src/Validations/user.validation.js';
-import { formatValidationErrors } from '#src/Utils/format.js';
+import logger from '#config/logger.js';
+import {
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+} from '#services/user.service.js';  
+import {
+  userIdSchema,
+  updateUserSchema,
+} from '#validations/user.validation.js';
+import { formatValidationErrors } from '#utils/format.js';  // ✅ Changed to plural
 
+export const fetchAllUsers = async (req, res, next) => {
+  try {
+    logger.info('Getting users...');
 
-export const fetchAllUsers = async (req, res) => {
-  try{
-    logger.info('Fetching all users');
-
-    const allUsers = await getAllUser();
+    const allUsers = await getAllUsers();
 
     res.json({
-      message: 'Users fetched successfully',
-      users : allUsers,
-      count : allUsers.length,
+      message: 'Successfully retrieved users',
+      users: allUsers,
+      count: allUsers.length,
     });
-
-  }catch(e){
-    logger.error('Error in fetchAllUsers controller', e);
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to fetch users'
-    });
+  } catch (e) {
+    logger.error(e);
+    next(e);
   }
-    
 };
 
-export const getUserById = async (req, res) => {
+export const fetchUserById = async (req, res, next) => {
   try {
-    // Validate ID parameter
+    logger.info(`Getting user by id: ${req.params.id}`);
+
     const validationResult = userIdSchema.safeParse({ id: req.params.id });
 
     if (!validationResult.success) {
       return res.status(400).json({
-        error: 'Validation error',
-        details: formatValidationErrors(validationResult.error)
+        error: 'Validation failed',
+        details: formatValidationErrors(validationResult.error),  // ✅ Changed to plural
       });
     }
 
     const { id } = validationResult.data;
-    logger.info(`Fetching user with id ${id}`);
+    const user = await getUserById(id);
 
-    const user = await getUser(id);
-
-    res.status(200).json({
-      message: 'User fetched successfully',
-      user
+    logger.info(`User ${user.email} retrieved successfully`);
+    res.json({
+      message: 'User retrieved successfully',
+      user,
     });
-
   } catch (e) {
-    logger.error('Error in getUserById controller', e);
+    logger.error(`Error fetching user by id: ${e.message}`);
 
     if (e.message === 'User not found') {
-      return res.status(404).json({
-        error: 'Not found',
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to fetch user'
-    });
+    next(e);
   }
 };
 
-export const updateUser = async (req, res) => {
+export const updateUserById = async (req, res, next) => {
   try {
-    // Validate ID parameter
+    logger.info(`Updating user: ${req.params.id}`);
+
     const idValidationResult = userIdSchema.safeParse({ id: req.params.id });
 
     if (!idValidationResult.success) {
       return res.status(400).json({
-        error: 'Validation error',
-        details: formatValidationErrors(idValidationResult.error)
+        error: 'Validation failed',
+        details: formatValidationErrors(idValidationResult.error),  // ✅ Changed to plural
       });
     }
 
-    // Validate update body
-    const bodyValidationResult = updateUserSchema.safeParse(req.body);
+    const updateValidationResult = updateUserSchema.safeParse(req.body);
 
-    if (!bodyValidationResult.success) {
+    if (!updateValidationResult.success) {
       return res.status(400).json({
-        error: 'Validation error',
-        details: formatValidationErrors(bodyValidationResult.error)
+        error: 'Validation failed',
+        details: formatValidationErrors(updateValidationResult.error),  // ✅ Changed to plural
       });
     }
 
     const { id } = idValidationResult.data;
-    const updates = bodyValidationResult.data;
+    const updates = updateValidationResult.data;
 
-    // Authorization checks
-    const authenticatedUser = req.user; // Assumes auth middleware sets req.user
-
-    if (!authenticatedUser) {
+    if (!req.user) {
       return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Authentication required'
+        error: 'Authentication required',
+        message: 'You must be logged in to update user information',
       });
     }
 
-    // Check if user is trying to update their own information or is an admin
-    if (authenticatedUser.id !== id && authenticatedUser.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.id !== id) {
       return res.status(403).json({
-        error: 'Forbidden',
-        message: 'You can only update your own information'
+        error: 'Access denied',
+        message: 'You can only update your own information',
       });
     }
 
-    // Only admins can change roles
-    if (updates.role && authenticatedUser.role !== 'admin') {
+    if (updates.role && req.user.role !== 'admin') {
       return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Only admins can change user roles'
+        error: 'Access denied',
+        message: 'Only administrators can change user roles',
       });
     }
 
-    logger.info(`Updating user with id ${id}`);
+    if (req.user.role !== 'admin') {
+      delete updates.role;
+    }
 
-    const updatedUser = await updateUserService(id, updates);
+    const updatedUser = await updateUser(id, updates);
 
-    res.status(200).json({
+    logger.info(`User ${updatedUser.email} updated successfully`);
+    res.json({
       message: 'User updated successfully',
-      user: updatedUser
+      user: updatedUser,
     });
-
   } catch (e) {
-    logger.error('Error in updateUser controller', e);
+    logger.error(`Error updating user: ${e.message}`);
 
     if (e.message === 'User not found') {
-      return res.status(404).json({
-        error: 'Not found',
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to update user'
-    });
+    if (e.message === 'Email already exists') {
+      return res.status(409).json({ error: 'Email already exists' });
+    }
+
+    next(e);
   }
 };
 
-export const deleteUser = async (req, res) => {
+export const deleteUserById = async (req, res, next) => {
   try {
-    // Validate ID parameter
+    logger.info(`Deleting user: ${req.params.id}`);
+
     const validationResult = userIdSchema.safeParse({ id: req.params.id });
 
     if (!validationResult.success) {
       return res.status(400).json({
-        error: 'Validation error',
-        details: formatValidationErrors(validationResult.error)
+        error: 'Validation failed',
+        details: formatValidationErrors(validationResult.error),  // ✅ Changed to plural
       });
     }
 
     const { id } = validationResult.data;
 
-    // Authorization checks
-    const authenticatedUser = req.user; // Assumes auth middleware sets req.user
-
-    if (!authenticatedUser) {
+    if (!req.user) {
       return res.status(401).json({
-        error: 'Unauthorized',
-        message: 'Authentication required'
+        error: 'Authentication required',
+        message: 'You must be logged in to delete users',
       });
     }
 
-    // Only admins can delete users, or users can delete themselves
-    if (authenticatedUser.id !== id && authenticatedUser.role !== 'admin') {
+    if (req.user.role !== 'admin') {
       return res.status(403).json({
-        error: 'Forbidden',
-        message: 'You can only delete your own account'
+        error: 'Access denied',
+        message: 'Only administrators can delete users',
       });
     }
 
-    logger.info(`Deleting user with id ${id}`);
+    if (req.user.id === id) {
+      return res.status(403).json({
+        error: 'Operation denied',
+        message: 'You cannot delete your own account',
+      });
+    }
 
-    const result = await deleteUserService(id);
+    const deletedUser = await deleteUser(id);
 
-    res.status(200).json({
+    logger.info(`User ${deletedUser.email} deleted successfully`);
+    res.json({
       message: 'User deleted successfully',
-      data: result
+      user: deletedUser,
     });
-
   } catch (e) {
-    logger.error('Error in deleteUser controller', e);
+    logger.error(`Error deleting user: ${e.message}`);
 
     if (e.message === 'User not found') {
-      return res.status(404).json({
-        error: 'Not found',
-        message: 'User not found'
-      });
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    res.status(500).json({
-      error: 'Internal server error',
-      message: 'Failed to delete user'
-    });
+    next(e);
   }
 };
-
