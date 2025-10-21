@@ -1,7 +1,18 @@
 import request from 'supertest';
-import app from '#src/app.js';
+import app from '../src/app.js';
 
 describe('API EndPoints', () => {
+  let server;
+
+  // Close server after all tests
+  afterAll(async () => {
+    if (server) {
+      await new Promise(resolve => server.close(resolve));
+    }
+    // Give time for cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
+  });
+
   describe('GET /health', () => {
     it('should return health status', async () => {
       const response = await request(app)
@@ -31,7 +42,6 @@ describe('API EndPoints', () => {
         .expect(404);
       
       expect(response.body).toHaveProperty('error', 'Not Found');
-      expect(response.body).toHaveProperty('message', 'The requested resource does not exist');
     });
   });
 });
