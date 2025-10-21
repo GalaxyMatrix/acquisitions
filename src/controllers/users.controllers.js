@@ -4,7 +4,7 @@ import {
   getUserById,
   updateUser,
   deleteUser,
-} from '#services/user.service.js';  
+} from '#Services/user.service.js';  
 import {
   userIdSchema,
   updateUserSchema,
